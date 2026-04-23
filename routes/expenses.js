@@ -1,17 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const store = require('../db/dbManager');
 const { Expense } = require('../models/mongoModels');
 
 // fetch all expenses
 router.get('/', async (req, res) => {
   try {
-    const list = await store.read(
-      'SELECT * FROM expenses ORDER BY date DESC',
-      [],
-      async () => await Expense.find().sort({ date: -1 })
-    );
-    res.json(list);
+    const list = await Expense.find().sort({ date: -1 });
+    const formattedList = list.map(e => ({
+      ...e.toObject(),
+      id: e._id.toString()
+    }));
+    res.json(formattedList);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -21,19 +20,12 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const { type, amount, note, date } = req.body;
   try {
-    await store.write(
-      'INSERT INTO expenses (type, amount, note, date) VALUES (?, ?, ?, ?)',
-      [type, amount, note, date],
-      async (sqlRes) => {
-        await Expense.create({
-          sqlId: sqlRes ? sqlRes.insertId : null,
-          type,
-          amount,
-          note,
-          date: date || new Date()
-        });
-      }
-    );
+    await Expense.create({
+      type,
+      amount,
+      note,
+      date: date || new Date()
+    });
     res.json({ status: 'ok', msg: 'Expense saved' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -43,13 +35,7 @@ router.post('/', async (req, res) => {
 // delete an expense
 router.delete('/:id', async (req, res) => {
   try {
-    await store.write(
-      'DELETE FROM expenses WHERE id = ?',
-      [req.params.id],
-      async () => {
-        await Expense.deleteOne({ sqlId: req.params.id });
-      }
-    );
+    await Expense.findByIdAndDelete(req.params.id);
     res.json({ msg: 'Expense deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -57,4 +43,3 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
-

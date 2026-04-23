@@ -1,20 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const os = require('os');
-const db = require('../db/connection');
 const mongoose = require('mongoose');
 
 router.get('/', async (req, res) => {
-  let mysqlStatus = 'Disconnected';
   let mongoStatus = 'Disconnected';
-
-  // Check MySQL Connection
-  try {
-    await db.query('SELECT 1');
-    mysqlStatus = 'Connected';
-  } catch (error) {
-    mysqlStatus = `Error: ${error.message}`;
-  }
 
   // Check MongoDB Connection
   const state = mongoose.connection.readyState;
@@ -39,7 +29,6 @@ router.get('/', async (req, res) => {
     uptime_formatted: `${Math.floor(process.uptime() / 60 / 60)}h ${Math.floor((process.uptime() / 60) % 60)}m ${Math.floor(process.uptime() % 60)}s`,
     environment: process.env.NODE_ENV || 'development',
     databases: {
-      mysql: mysqlStatus,
       mongodb: mongoStatus
     },
     system: {
