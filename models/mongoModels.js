@@ -23,7 +23,7 @@ const FlowerSchema = new mongoose.Schema({
 });
 
 const InvoiceItemSchema = new mongoose.Schema({
-  flower_id: String, // String to hold Mongo ObjectId
+  flower_id: String, 
   flower_name: String,
   gross_weight: Number,
   less_weight: Number,
