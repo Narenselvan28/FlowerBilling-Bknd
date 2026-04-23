@@ -7,7 +7,6 @@ const UserSchema = new mongoose.Schema({
 });
 
 const CustomerSchema = new mongoose.Schema({
-  sqlId: Number, // To track sync
   name: { type: String, required: true },
   name_ta: String,
   phone: String,
@@ -16,7 +15,6 @@ const CustomerSchema = new mongoose.Schema({
 });
 
 const FlowerSchema = new mongoose.Schema({
-  sqlId: Number,
   name: { type: String, required: true },
   name_ta: String,
   default_rate: { type: Number, required: true },
@@ -25,7 +23,7 @@ const FlowerSchema = new mongoose.Schema({
 });
 
 const InvoiceItemSchema = new mongoose.Schema({
-  flower_id: Number, // Reference to Flower SQL ID or Mongo ID
+  flower_id: String, // String to hold Mongo ObjectId
   flower_name: String,
   gross_weight: Number,
   less_weight: Number,
@@ -35,10 +33,11 @@ const InvoiceItemSchema = new mongoose.Schema({
 });
 
 const InvoiceSchema = new mongoose.Schema({
-  sqlId: Number,
-  customer_id: Number,
+  customer_id: String, // String to hold Mongo ObjectId
   customer_name: String,
+  payment_mode: { type: String, default: 'Credit' },
   total_amount: { type: Number, required: true },
+  amount_paid: { type: Number, default: 0 },
   previous_balance: { type: Number, required: true },
   final_balance: { type: Number, required: true },
   items: [InvoiceItemSchema],
@@ -46,21 +45,18 @@ const InvoiceSchema = new mongoose.Schema({
 });
 
 const PaymentSchema = new mongoose.Schema({
-  sqlId: Number,
-  customer_id: Number,
+  customer_id: String, // String to hold Mongo ObjectId
   amount: { type: Number, required: true },
   payment_date: { type: Date, default: Date.now }
 });
 
 const StockEntrySchema = new mongoose.Schema({
-  sqlId: Number,
-  flower_id: Number,
+  flower_id: String, // String to hold Mongo ObjectId
   quantity: { type: Number, required: true },
   entry_date: { type: Date, default: Date.now }
 });
 
 const ExpenseSchema = new mongoose.Schema({
-  sqlId: Number,
   type: String,
   amount: Number,
   note: String,
