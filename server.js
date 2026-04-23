@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 const { connectMongo } = require('./db/mongo');
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 8080;
 
 // connect to backup db
 connectMongo();
