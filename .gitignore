@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Secrets
+.env
+config.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# Misc
+.DS_Store
+.vscode/
+.idea/
