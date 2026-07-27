@@ -11,7 +11,7 @@ router.post('/login', async (req, res) => {
     if (user) {
       res.json({ 
         success: true, 
-        user: { id: user._id, username: user.username } 
+        user: { id: user.id, username: user.username } 
       });
     } else {
       res.status(401).json({ success: false, msg: 'Invalid credentials' });

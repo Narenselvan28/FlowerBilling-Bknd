@@ -6,11 +6,7 @@ const { Expense } = require('../models/mongoModels');
 router.get('/', async (req, res) => {
   try {
     const list = await Expense.find().sort({ date: -1 });
-    const formattedList = list.map(e => ({
-      ...e.toObject(),
-      id: e._id.toString()
-    }));
-    res.json(formattedList);
+    res.json(list);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -20,13 +16,28 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const { type, amount, note, date } = req.body;
   try {
-    await Expense.create({
+    const expense = await Expense.create({
       type,
       amount,
       note,
       date: date || new Date()
     });
-    res.json({ status: 'ok', msg: 'Expense saved' });
+    res.json(expense);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// update an expense
+router.put('/:id', async (req, res) => {
+  const { type, amount, note, date } = req.body;
+  try {
+    const expense = await Expense.findByIdAndUpdate(
+      req.params.id,
+      { type, amount, note, date },
+      { new: true }
+    );
+    res.json(expense);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -43,3 +54,4 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
+

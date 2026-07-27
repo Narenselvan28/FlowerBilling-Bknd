@@ -6,11 +6,7 @@ const { Flower } = require('../models/mongoModels');
 router.get('/', async (req, res) => {
   try {
     const list = await Flower.find().sort({ name: 1 });
-    const formattedList = list.map(f => ({
-      ...f.toObject(),
-      id: f._id.toString()
-    }));
-    res.json(formattedList);
+    res.json(list);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -18,14 +14,16 @@ router.get('/', async (req, res) => {
 
 // add a new flower type
 router.post('/', async (req, res) => {
-  const { name, default_rate, unit } = req.body;
+  const { name, name_ta, default_rate, unit } = req.body;
   try {
-    const newFlower = await Flower.create({
+    const flower = await Flower.create({
       name,
+      name_ta,
       default_rate,
-      unit
+      unit,
+      stock_qty: 0
     });
-    res.json({ id: newFlower._id.toString(), name, default_rate, unit });
+    res.json(flower);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -33,10 +31,14 @@ router.post('/', async (req, res) => {
 
 // edit a flower
 router.put('/:id', async (req, res) => {
-  const { name, default_rate, unit } = req.body;
+  const { name, name_ta, default_rate, unit, stock_qty } = req.body;
   try {
-    await Flower.findByIdAndUpdate(req.params.id, { name, default_rate, unit });
-    res.json({ msg: 'Flower updated' });
+    const flower = await Flower.findByIdAndUpdate(
+      req.params.id,
+      { name, name_ta, default_rate, unit, stock_qty },
+      { new: true }
+    );
+    res.json(flower);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

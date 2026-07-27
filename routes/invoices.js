@@ -1,15 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const { Invoice, Payment, Customer } = require('../models/mongoModels');
+const { Invoice, Payment, Customer, Flower } = require('../models/mongoModels');
 
 // Create a new invoice
 router.post('/', async (req, res) => {
   const { customer_id, payment_mode, total_amount, amount_paid, previous_balance, final_balance, items } = req.body;
   
   try {
-    const inv = await Invoice.create({
+    // 1. Create the invoice
+    const invoice = await Invoice.create({
       customer_id,
+      payment_mode: payment_mode || 'Credit',
       total_amount,
+      amount_paid: amount_paid || 0,
       previous_balance,
       final_balance,
       items: items.map(i => ({
@@ -21,14 +24,27 @@ router.post('/', async (req, res) => {
         amount: i.amount
       }))
     });
-    
+
+    // 2. If they paid something, record it
     if (amount_paid > 0) {
-      await Payment.create({ customer_id, amount: amount_paid });
+      await Payment.create({ 
+        customer_id, 
+        amount: amount_paid, 
+        note: `Paid against Invoice #${invoice.id}` 
+      });
     }
-    
+
+    // 3. Update customer balance
     await Customer.findByIdAndUpdate(customer_id, { current_balance: final_balance });
 
-    res.json({ id: inv._id.toString(), msg: 'Invoice saved' });
+    // 4. Update flower stock (decrement by net_weight)
+    for (const itm of items) {
+      if (itm.flower_id) {
+        await Flower.findByIdAndUpdate(itm.flower_id, { $inc: { stock_qty: -itm.net_weight } });
+      }
+    }
+
+    res.json(invoice);
   } catch (err) {
     console.error('Invoice error:', err);
     res.status(500).json({ error: 'Something went wrong while saving invoice' });
@@ -38,28 +54,10 @@ router.post('/', async (req, res) => {
 // fetch all invoices
 router.get('/', async (req, res) => {
   try {
-    const invoices = await Invoice.find().sort({ created_at: -1 });
-    
-    // populate customer names manually
-    const customerIds = [...new Set(invoices.map(i => i.customer_id))];
-    const customers = await Customer.find({ _id: { $in: customerIds } });
-    
-    const customerMap = {};
-    customers.forEach(c => {
-      customerMap[c._id.toString()] = c;
-    });
-
-    const enrichedInvoices = invoices.map(inv => {
-      const cust = customerMap[inv.customer_id] || {};
-      return {
-        ...inv.toObject(),
-        id: inv._id.toString(),
-        customer_name: cust.name || 'Unknown',
-        customer_name_ta: cust.name_ta || ''
-      };
-    });
-    
-    res.json(enrichedInvoices);
+    const data = await Invoice.find().sort({ created_at: -1 });
+    // In a real app, you might want to join customer names here
+    // For now, I'll return the raw list as the frontend might handle lookups
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -68,20 +66,27 @@ router.get('/', async (req, res) => {
 // get details for one invoice
 router.get('/:id', async (req, res) => {
   try {
-    const inv = await Invoice.findById(req.params.id).lean();
-    if (!inv) return res.status(404).json({ msg: 'Invoice not found' });
-
-    const cust = await Customer.findById(inv.customer_id).lean();
+    const invoice = await Invoice.findById(req.params.id).lean();
+    if (!invoice) return res.status(404).json({ msg: 'Invoice not found' });
     
-    const result = {
-      ...inv,
-      id: inv._id.toString(),
-      customer_name: cust ? cust.name : 'Unknown',
-      customer_name_ta: cust ? cust.name_ta : '',
-      customer_phone: cust ? cust.phone : ''
-    };
+    // Convert customer_id and flower_id to names for legacy frontend support
+    if (invoice.customer_id) {
+      const customer = await Customer.findById(invoice.customer_id).lean();
+      invoice.customer_name = customer?.name;
+      invoice.customer_name_ta = customer?.name_ta;
+      invoice.customer_phone = customer?.phone;
+    }
+    
+    for (let itm of invoice.items) {
+      if (itm.flower_id) {
+        const flower = await Flower.findById(itm.flower_id).lean();
+        itm.flower_name = flower?.name;
+        itm.flower_name_ta = flower?.name_ta;
+        itm.unit = flower?.unit;
+      }
+    }
 
-    res.json(result);
+    res.json(invoice);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -98,3 +103,4 @@ router.get('/customer/:id', async (req, res) => {
 });
 
 module.exports = router;
+

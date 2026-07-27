@@ -6,12 +6,7 @@ const { Customer, Payment } = require('../models/mongoModels');
 router.get('/', async (req, res) => {
   try {
     const list = await Customer.find().sort({ name: 1 });
-    // mapping _id to id so frontend doesn't break
-    const formattedList = list.map(c => ({
-      ...c.toObject(),
-      id: c._id.toString()
-    }));
-    res.json(formattedList);
+    res.json(list);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -19,29 +14,46 @@ router.get('/', async (req, res) => {
 
 // add a new one
 router.post('/', async (req, res) => {
-  const { name, phone, current_balance } = req.body;
+  const { name, phone, current_balance, name_ta } = req.body;
   try {
-    const newCust = await Customer.create({
+    const customer = await Customer.create({
       name,
+      name_ta,
       phone,
       current_balance: current_balance || 0
     });
-    res.json({ id: newCust._id.toString(), name, phone, current_balance: newCust.current_balance });
+    res.json(customer);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // recording a payment/settlement
-router.post('/payment', async (req, res) => {
-  const { customer_id, amount } = req.body;
+router.post('/:id/payments', async (req, res) => {
+  const { amount, note, date } = req.body;
+  const customerId = req.params.id;
   
   try {
-    await Payment.create({ customer_id, amount });
-    // Use customer_id directly as it might be an ObjectId string now
-    await Customer.findByIdAndUpdate(customer_id, { $inc: { current_balance: amount } });
+    const payment = await Payment.create({ 
+      customer_id: customerId, 
+      amount, 
+      note, 
+      payment_date: date || new Date() 
+    });
     
-    res.json({ status: 'ok', msg: 'Payment recorded' });
+    await Customer.findByIdAndUpdate(customerId, { $inc: { current_balance: -amount } });
+
+    res.json({ status: 'ok', msg: 'Payment recorded', payment });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// get all payments for a customer
+router.get('/:id/payments', async (req, res) => {
+  try {
+    const list = await Payment.find({ customer_id: req.params.id }).sort({ payment_date: -1 });
+    res.json(list);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -49,10 +61,14 @@ router.post('/payment', async (req, res) => {
 
 // edit customer
 router.put('/:id', async (req, res) => {
-  const { name, phone, current_balance } = req.body;
+  const { name, phone, current_balance, name_ta } = req.body;
   try {
-    await Customer.findByIdAndUpdate(req.params.id, { name, phone, current_balance });
-    res.json({ msg: 'Customer updated' });
+    const customer = await Customer.findByIdAndUpdate(
+      req.params.id, 
+      { name, name_ta, phone, current_balance },
+      { new: true }
+    );
+    res.json(customer);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -62,7 +78,9 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     await Customer.findByIdAndDelete(req.params.id);
-    res.json({ msg: 'Customer removed' });
+    // Also cleanup payments?
+    await Payment.deleteMany({ customer_id: req.params.id });
+    res.json({ msg: 'Customer and related payments removed' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
