@@ -10,6 +10,9 @@ const connect = async () => {
     const maskedUri = uri.replace(/\/\/.*@/, '//<user>:<password>@');
     console.log('Using URI:', maskedUri);
     
+    // Enable database query logging for debugging
+    mongoose.set('debug', true);
+    
     await mongoose.connect(uri, {
       serverSelectionTimeoutMS: 5000 // 5 seconds timeout
     });
